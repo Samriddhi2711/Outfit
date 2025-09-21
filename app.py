@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from io import BytesIO
 import numpy as np
 from fastapi.middleware.cors import CORSMiddleware
+import base64
 
 # -------------------- Load ENV --------------------
 load_dotenv()
@@ -83,18 +84,11 @@ def convert_numpy(obj):
 # -------------------- API Route --------------------
 @app.post("/recommend")
 async def recommend(file: UploadFile = File(...)):
-    # Step 1: Upload to ImgBB
+    # Step 1: Read file bytes
     img_bytes = await file.read()
-    response = requests.post(
-        "https://api.imgbb.com/1/upload",
-        params={"key": IMGBB_API_KEY},
-        files={"image": ("image.jpg", BytesIO(img_bytes), file.content_type)},
-    )
-    data = response.json()
-    if not data.get("success"):
-        return JSONResponse({"error": "Image upload failed", "details": data}, status_code=500)
-
-    image_url = data["data"]["url"]
+    # Convert to base64
+    img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+    image_url = f"data:{file.content_type};base64,{img_b64}"
 
     # Step 2: LLM call
     llm = ChatOpenAI(model="gpt-4o")
@@ -140,7 +134,7 @@ async def recommend(file: UploadFile = File(...)):
 
     if given == "top":
         if bottom_query:
-            for r in fetch_matching_products(bottom_query, top_k=1, filter_type="bottom"):
+            for r in fetch_matching_products(bottom_query, top_k=2, filter_type="bottom"):
                 suggestions["recommendations"]["bottom"].append({
                     "name": r["name"],
                     "price": convert_numpy(r["price"]),
@@ -149,7 +143,7 @@ async def recommend(file: UploadFile = File(...)):
                     "image": r["img"]
                 })
         if accessory_query:
-            for r in fetch_matching_products(accessory_query, top_k=1, filter_type="accessory"):
+            for r in fetch_matching_products(accessory_query, top_k=2, filter_type="accessory"):
                 suggestions["recommendations"]["accessory"].append({
                     "name": r["name"],
                     "price": convert_numpy(r["price"]),
@@ -160,7 +154,7 @@ async def recommend(file: UploadFile = File(...)):
 
     elif given == "bottom":
         if top_query:
-            for r in fetch_matching_products(top_query, top_k=1, filter_type="top"):
+            for r in fetch_matching_products(top_query, top_k=2, filter_type="top"):
                 suggestions["recommendations"]["top"].append({
                     "name": r["name"],
                     "price": convert_numpy(r["price"]),
@@ -169,7 +163,7 @@ async def recommend(file: UploadFile = File(...)):
                     "image": r["img"]
                 })
         if accessory_query:
-            for r in fetch_matching_products(accessory_query, top_k=1, filter_type="accessory"):
+            for r in fetch_matching_products(accessory_query, top_k=2, filter_type="accessory"):
                 suggestions["recommendations"]["accessory"].append({
                     "name": r["name"],
                     "price": convert_numpy(r["price"]),
@@ -180,7 +174,7 @@ async def recommend(file: UploadFile = File(...)):
 
     elif given == "accessory":
         if top_query:
-            for r in fetch_matching_products(top_query, top_k=1, filter_type="top"):
+            for r in fetch_matching_products(top_query, top_k=2, filter_type="top"):
                 suggestions["recommendations"]["top"].append({
                     "name": r["name"],
                     "price": convert_numpy(r["price"]),
@@ -189,7 +183,7 @@ async def recommend(file: UploadFile = File(...)):
                     "image": r["img"]
                 })
         if bottom_query:
-            for r in fetch_matching_products(bottom_query, top_k=1, filter_type="bottom"):
+            for r in fetch_matching_products(bottom_query, top_k=2, filter_type="bottom"):
                 suggestions["recommendations"]["bottom"].append({
                     "name": r["name"],
                     "price": convert_numpy(r["price"]),
